@@ -21,6 +21,8 @@ Arising from a Twitter thread (May 7, 2026) explaining why population structure 
 
 The key policy insight — that targeted intervention in clusters and bridges can collapse an epidemic without acting on the general population at all — is underappreciated and has direct relevance to current public health debates.
 
+**Narrative artifacts to embed in the notebooks**: (1) The whiteboard photo from Erika's 11th-grade bedroom (2016) showing the Kermack-McKendrick SIR equations — this is the literal origin of the model and a strong human-interest hook. (2) The thread itself as the immediate policy context. Both should appear as images or quoted text in notebook 01.
+
 ---
 
 ## The Lynchpin Insight
@@ -62,6 +64,8 @@ UI design implication: controls for later stages are hidden or grayed out until 
 ## Model
 
 **SEIRS with contact matrix** — small number of subpopulations (general population + 2–3 cluster types), with a matrix of between-group contact rates encoding bridge structure.
+
+**Transmission formulation**: density-dependent, matching the Kermack-McKendrick equations on Erika's whiteboard: dS/dt = −βSI, dI/dt = βSI − γI, dR/dt = γI. This means β has units of 1/(person·time) and R₀ = βN/γ at the start (when S ≈ N). For the multi-group model the force of infection on group i from group j is βᵢⱼSᵢIⱼ, where βᵢⱼ is the (i,j) entry of the contact-rate matrix. This must be documented prominently in the notebook narrative and in the model module, because it determines how cross-group β values scale with cluster size.
 
 **Numerical integration**: simple iterative RK4 (Runge-Kutta 4th order). Chosen over scipy.integrate.solve_ivp because:
 - Integration loop is readable as the whiteboard equations
@@ -202,10 +206,11 @@ Deliver a working interactive demonstration that proves, in simulation, all of t
 
 ### Parameter Strategy for Phase 1
 
-1. Start with normalized populations (for example, each group size = 1.0) to make structure effects visually clear.
+1. Use epidemiologically plausible integer population sizes (for example, general population N = 10,000; cluster N = 500). Never use fractional people.
 2. Use a shared default latent and infectious period unless a stage explicitly demonstrates timing effects.
 3. Keep intervention strengths coarse (for example, 0%, 25%, 50%, 75%, 100%) for interpretability.
 4. Document all baseline values in a single table reused across notebooks.
+5. Canonical baseline R₀ values: general population R₀ = 0.6, cluster R₀ = 2.5. These are far enough from 1.0 that the qualitative effect is visually unambiguous.
 
 ### Risks and Mitigations
 
@@ -230,7 +235,9 @@ Deliver a working interactive demonstration that proves, in simulation, all of t
 
 ## Collaborators
 
-**Erika Kerns** (coauthor) — MS Disease Ecology, UCLA (completing 2026). Thesis: hierarchical Bayesian modeling of leptospirosis population dynamics in California sea lions. Background in necropsy, field sampling, TMMC and Channel Islands data. Entering Colorado State veterinary school. Provides domain expertise and academic credibility. Whiteboard origin story (2016) is a natural narrative hook.
+**Erika Ono-Kerns** (coauthor) — MS student, UCLA Department of Ecology and Evolutionary Biology (completing 2026), Lloyd-Smith lab. Thesis: hierarchical Bayesian modeling of leptospirosis population dynamics in California sea lions using stranding data. Background in necropsy, field sampling, TMMC and Channel Islands data. Entering Colorado State veterinary school. Provides domain expertise and academic credibility. Whiteboard origin story (2016) is a natural narrative hook.
+
+Note: the Lloyd-Smith lab connection is substantive, not incidental. Jamie Lloyd-Smith co-authored the 2005 *Nature* paper establishing the 20/80 rule for individual variation in infectiousness — the empirical foundation for why superspreader structure matters. This gives the project a direct lineage to that work.
 
 ---
 
@@ -250,6 +257,24 @@ Deliver a working interactive demonstration that proves, in simulation, all of t
 - Exact cluster types to include in initial demo (party/transient, dorm/persistent, general population confirmed; cruise ship optional)
 - Whether shared markdown narrative text approach works cleanly in Observable
 - Journal paper timing and division of authorship responsibilities
+
+---
+
+## References
+
+1. Kermack, W. O. & McKendrick, A. G. (1927). A contribution to the mathematical theory of epidemics. *Proc. R. Soc. Lond. A*, **115**(772), 700–721. [doi:10.1098/rspa.1927.0118](https://doi.org/10.1098/rspa.1927.0118)
+   — The foundational paper. Introduces the SIR compartmental model and the epidemic threshold theorem (R₀ = 1). The homogeneity assumption this project is designed to challenge lives here.
+
+2. Kermack, W. O. & McKendrick, A. G. (1932). Contributions to the mathematical theory of epidemics. II. The problem of endemicity. *Proc. R. Soc. Lond. A*, **138**(834), 55–83. [doi:10.1098/rspa.1932.0171](https://doi.org/10.1098/rspa.1932.0171)
+   — Extends the model to allow births, deaths, and immigration. Shows conditions for endemic equilibrium; directly relevant to the SEIRS waning-immunity stage.
+
+3. Kermack, W. O. & McKendrick, A. G. (1933). Contributions to the mathematical theory of epidemics. III. Further studies of the problem of endemicity. *Proc. R. Soc. Lond. A*, **141**(843), 94–122. [doi:10.1098/rspa.1933.0106](https://doi.org/10.1098/rspa.1933.0106)
+   — Further analysis of endemic conditions and oscillatory behaviour.
+
+All three were republished in *Bulletin of Mathematical Biology* **53**(1–2), 1991 (doi:[10.1007/BF02464423](https://doi.org/10.1007/BF02464423), [BF02464424](https://doi.org/10.1007/BF02464424), [BF02464425](https://doi.org/10.1007/BF02464425)) and are more widely accessible in that form.
+
+4. Lloyd-Smith, J. O., Schreiber, S. J., Kopp, P. E. & Getz, W. M. (2005). Superspreading and the effect of individual variation on disease emergence. *Nature*, **438**(7066), 355–359. [doi:10.1038/nature04153](https://doi.org/10.1038/nature04153) — [free full text via PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7094981/)
+   — Establishes the empirical and theoretical case for individual variation in infectiousness (the 20/80 rule): a small fraction of cases drives the majority of transmission. The negative-binomial offspring distribution introduced here is the quantitative backbone behind why population structure — and superspreader clusters specifically — must be modelled explicitly. Erika was five when this was published; her presence in the Lloyd-Smith lab is an alignment rather than a personal connection to this paper, though whether she knew of it when choosing the lab is an open question.
 
 ---
 
