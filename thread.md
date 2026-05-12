@@ -1,3 +1,5 @@
+# Originating Twitter Thread
+
 Bob (Moderna #8) Kerns
 @BobKerns
 May 7, 2026 • 15 tweets • BobKerns/status/2052465249018884337
@@ -14,14 +16,14 @@ limited in inter-compartment contacts; for example, we know schools facilitate s
 visiting in nursing homes become important.
 @sportsnow41 @DrNeilStone Simple extrapolation is, of course baseline, but we should
 keep in mind the limitations of extrapolating into new contexts.
-Epidemiology isn't as simple as it seems. The Kermak-McKendrik SIR model assumes
+Epidemiology isn't as simple as it seems. The Kermack-McKendrick SIR model assumes
 homogeneity, and works well enough in a homogenous subgroup.
 @sportsnow41 @DrNeilStone (Whiteboard I found one day when my daughter was in 11th
 grade, back in 2016. She's a disease ecologist now).
 The long incubation time means we'll need some time to be sure that extrapolating from
 Argentina is a good approximation. We can hope.
 @sportsnow41 @DrNeilStone But the early phase of an epidemic is approximately
-exponential. Extrapolating exponentials is diﬃcult; even a small difference in the exponent
+exponential. Extrapolating exponentials is difficult; even a small difference in the exponent
 compounds quickly. Here, the exponent is Rₜ, the value of R at a point in time in a specific
 context.
 @sportsnow41 @DrNeilStone Rₜ does not depend on just the virus. It depends on behavior—

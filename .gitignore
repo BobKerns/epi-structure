@@ -1,1 +1,36 @@
 .DS_Store
+
+# Local environments and secrets
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+
+# Python bytecode and packaging artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Notebook and editor runtime artifacts
+.ipynb_checkpoints/
+.cspellcache
+
+# Miscellaneous local noise
+.python-version

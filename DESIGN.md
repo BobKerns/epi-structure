@@ -1,4 +1,5 @@
 # Epidemic Population Structure: Interactive Demonstration
+
 ## Design Document
 
 *Captures design decisions and context from initial brainstorming session, May 2026.*
@@ -25,7 +26,7 @@ The key policy insight — that targeted intervention in clusters and bridges ca
 
 ---
 
-## The Lynchpin Insight
+## The Linchpin Insight
 
 The conceptual heart of the demonstration:
 
@@ -43,7 +44,7 @@ Complexity accretes one concept at a time. Each stage adds exactly one new idea,
 2. **Add E compartment → SEIR** — latent period smooths and delays the curve. Why early detection is hard.
 3. **Add waning immunity → SEIRS** — endemic equilibria, oscillations. Why Covid didn't just "burn out."
 4. **Two populations, no bridge** — general population (R₀ < 1) plus one cluster (R₀ > 1). Cluster burns locally, general population unaffected. Feel the certainty of subcritical extinction.
-5. **Add the bridge** — continuous reseeding. The lynchpin moment.
+5. **Add the bridge** — continuous reseeding. The linchpin moment.
 6. **Interventions** — reduce cluster R₀ (ventilation, masking), cut bridges (contact tracing, isolation), targeted vaccination. Each is a slider or toggle. Viewer sees that general population R₀ need not change.
 7. **Multiple clusters, varying bridge rates** — full model.
 
@@ -120,7 +121,7 @@ Shared markdown narrative text, dynamically imported in Observable, keeps exposi
 ## Deployment Targets
 
 | Artifact | Audience | Format |
-|---|---|---|
+| --- | --- | --- |
 | Jupyter notebooks | Family, technically-minded readers, those who want to see the code | Binder or Google Colab link |
 | Observable notebook | General public | Shareable URL, no setup |
 | Journal paper (future) | Academic credibility, peer review | PLOS Computational Biology or Epidemics |
@@ -129,7 +130,7 @@ Shared markdown narrative text, dynamically imported in Observable, keeps exposi
 
 ## Phase 1 Definition (Current Build Target)
 
-Phase 1 is a notebook-first, research-grade MVP focused on making the lynchpin insight clear and testable.
+Phase 1 is a notebook-first, research-grade MVP focused on making the linchpin insight clear and testable.
 It prioritizes correctness, inspectability, and narrative flow over production polish.
 
 ### Primary Objective
@@ -271,8 +272,8 @@ Note: the Lloyd-Smith lab connection is substantive, not incidental. Jamie Lloyd
 
 3. Kermack, W. O. & McKendrick, A. G. (1933). Contributions to the mathematical theory of epidemics. III. Further studies of the problem of endemicity. *Proc. R. Soc. Lond. A*, **141**(843), 94–122. [doi:10.1098/rspa.1933.0106](https://doi.org/10.1098/rspa.1933.0106)
    — Further analysis of endemic conditions and oscillatory behaviour.
-
-All three were republished in *Bulletin of Mathematical Biology* **53**(1–2), 1991 (doi:[10.1007/BF02464423](https://doi.org/10.1007/BF02464423), [BF02464424](https://doi.org/10.1007/BF02464424), [BF02464425](https://doi.org/10.1007/BF02464425)) and are more widely accessible in that form.
+  \
+  All three were republished in *Bulletin of Mathematical Biology* **53**(1–2), 1991 (doi:[10.1007/BF02464423](https://doi.org/10.1007/BF02464423), [BF02464424](https://doi.org/10.1007/BF02464424), [BF02464425](https://doi.org/10.1007/BF02464425)) and are more widely accessible in that form.
 
 4. Lloyd-Smith, J. O., Schreiber, S. J., Kopp, P. E. & Getz, W. M. (2005). Superspreading and the effect of individual variation on disease emergence. *Nature*, **438**(7066), 355–359. [doi:10.1038/nature04153](https://doi.org/10.1038/nature04153) — [free full text via PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7094981/)
    — Establishes the empirical and theoretical case for individual variation in infectiousness (the 20/80 rule): a small fraction of cases drives the majority of transmission. The negative-binomial offspring distribution introduced here is the quantitative backbone behind why population structure — and superspreader clusters specifically — must be modelled explicitly. Erika was five when this was published; her presence in the Lloyd-Smith lab is an alignment rather than a personal connection to this paper, though whether she knew of it when choosing the lab is an open question.

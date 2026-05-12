@@ -11,7 +11,8 @@ The project demonstrates a specific claim with policy relevance:
 - A general population with R0 < 1 does not sustain transmission on its own.
 - A supercritical cluster can sustain local transmission.
 - A bridge from that cluster can continuously reseed the general population.
-- Targeted interventions on clusters and bridges can clear general-population incidence without changing general-population R0.
+- Targeted interventions on clusters and bridges can clear general-population
+  incidence without changing general-population R0.
 
 For design rationale and narrative context, see DESIGN.md.
 

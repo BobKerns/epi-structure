@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^\\(command -v markdownlint-cli2 \\|\\| command -v markdownlint \\|\\| command -v npx\\) && echo ready$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
