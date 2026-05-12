@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "epi-structure"
+version = "0.1.0"
+description = "Interactive demonstration of epidemic dynamics under population structure"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Bob Kerns" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/epi_structure"]
+
+[tool.uv]
+package = true
