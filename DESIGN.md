@@ -257,6 +257,7 @@ Note: the Lloyd-Smith lab connection is substantive, not incidental. Jamie Lloyd
 - Exact cluster types to include in initial demo (party/transient, dorm/persistent, general population confirmed; cruise ship optional)
 - Whether shared markdown narrative text approach works cleanly in Observable
 - Journal paper timing and division of authorship responsibilities
+- Editorial pass before any public release: remove internal-planning phrasing from collaborator/reference annotations (especially Reference 4 note) while preserving the substantive citation rationale
 
 ---
 
