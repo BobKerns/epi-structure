@@ -5,6 +5,17 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 ## Current Notebooks
 
 - `exploration.ipynb`: A sample notebook for driving the simulation engine with example data.
+- `contact_matrix_exploration.ipynb`: A focused two-population example using `StructuredEpidemicModel` and a lightweight named matrix builder.
+
+## Contact Matrix UX Pattern
+
+For quick exploratory work, prefer building contact matrices from:
+
+- population names in engine order
+- within-group defaults/presets (diagonal entries)
+- sparse bridge overrides only where needed
+
+This keeps configuration readable while still producing a full square matrix for the engine.
 
 ## Usage
 

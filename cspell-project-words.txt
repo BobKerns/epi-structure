@@ -28,10 +28,13 @@ Schreiber
 scipy
 seir
 seirs
+sharex
 sportsnow
 Stepsize
 Sturgis
 Superspreading
+suptitle
+timepoint
 TMMC
 Toggleable
 venv

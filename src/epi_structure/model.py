@@ -6,7 +6,7 @@ from typing import Callable, Protocol
 from .parameters import PopulationParameters, SimulationParameters
 
 
-StateVector = tuple[float, float, float, float]
+StateVector = tuple[float, ...]
 DerivativeFunction = Callable[[StateVector], StateVector]
 
 
@@ -27,12 +27,7 @@ class RK4Stepper:
 
     @staticmethod
     def _add_scaled(base: StateVector, delta: StateVector, scale: float) -> StateVector:
-        return (
-            base[0] + delta[0] * scale,
-            base[1] + delta[1] * scale,
-            base[2] + delta[2] * scale,
-            base[3] + delta[3] * scale,
-        )
+        return tuple(base[i] + delta[i] * scale for i in range(len(base)))
 
     def step(
         self,
@@ -45,11 +40,9 @@ class RK4Stepper:
         k3 = derivatives(self._add_scaled(state, k2, 0.5 * time_step))
         k4 = derivatives(self._add_scaled(state, k3, time_step))
 
-        return (
-            state[0] + time_step * (k1[0] + 2.0 * k2[0] + 2.0 * k3[0] + k4[0]) / 6.0,
-            state[1] + time_step * (k1[1] + 2.0 * k2[1] + 2.0 * k3[1] + k4[1]) / 6.0,
-            state[2] + time_step * (k1[2] + 2.0 * k2[2] + 2.0 * k3[2] + k4[2]) / 6.0,
-            state[3] + time_step * (k1[3] + 2.0 * k2[3] + 2.0 * k3[3] + k4[3]) / 6.0,
+        return tuple(
+            state[i] + time_step * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0
+            for i in range(len(state))
         )
 
 
@@ -68,6 +61,20 @@ class StatePoint:
         """Return total population represented by this state."""
 
         return self.susceptible + self.exposed + self.infected + self.recovered
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredStatePoint:
+    """State snapshot for a multi-population simulation timepoint."""
+
+    time: float
+    by_population: dict[str, StatePoint]
+
+    @property
+    def total_population(self) -> float:
+        """Return total population represented across all populations."""
+
+        return sum(point.total_population for point in self.by_population.values())
 
 
 class EpidemicModel:
@@ -142,5 +149,158 @@ class EpidemicModel:
             state = self._normalize_state(raw_state, float(self.population.size))
             if step % self.simulation.output_stride == 0:
                 trajectory.append(StatePoint(step * dt, *state))
+
+        return trajectory
+
+
+class StructuredEpidemicModel:
+    """Deterministic multi-population SEIRS simulator with contact matrix coupling.
+
+    The force of infection on population i is:
+        lambda_i = S_i * sum_j(beta_ij * I_j)
+    where beta_ij is the contact matrix entry at row i, column j.
+    """
+
+    def __init__(
+        self,
+        populations: list[PopulationParameters],
+        contact_matrix: list[list[float]],
+        simulation: SimulationParameters,
+        stepper: StateStepper | None = None,
+    ) -> None:
+        if not populations:
+            raise ValueError("populations must not be empty")
+
+        self.populations = populations
+        self.simulation = simulation
+        self.stepper = stepper or RK4Stepper()
+        self.contact_matrix = self._validate_contact_matrix(contact_matrix, len(populations))
+
+        self._names = [population.name for population in populations]
+        self._sizes = [float(population.size) for population in populations]
+        self._gammas = [1.0 / population.disease.infectious_period for population in populations]
+        self._sigmas = [
+            None if population.disease.latent_period is None else 1.0 / population.disease.latent_period
+            for population in populations
+        ]
+        self._omegas = [
+            0.0 if population.disease.waning_period is None else 1.0 / population.disease.waning_period
+            for population in populations
+        ]
+
+    @staticmethod
+    def _validate_contact_matrix(contact_matrix: list[list[float]], count: int) -> list[list[float]]:
+        if len(contact_matrix) != count:
+            raise ValueError("contact_matrix must have one row per population")
+        for row in contact_matrix:
+            if len(row) != count:
+                raise ValueError("contact_matrix must be square with one column per population")
+            if any(value < 0 for value in row):
+                raise ValueError("contact_matrix entries must be non-negative")
+        return contact_matrix
+
+    @staticmethod
+    def _state_index(population_index: int, compartment_offset: int) -> int:
+        return 4 * population_index + compartment_offset
+
+    def _initial_state(self) -> StateVector:
+        values: list[float] = []
+        for population in self.populations:
+            s, e, i, r = population.initial_state
+            values.extend((float(s), float(e), float(i), float(r)))
+        return tuple(values)
+
+    def _derivatives(self, state: StateVector) -> StateVector:
+        derivatives: list[float] = [0.0] * len(state)
+        infected = [state[self._state_index(i, 2)] for i in range(len(self.populations))]
+
+        for i in range(len(self.populations)):
+            s_index = self._state_index(i, 0)
+            e_index = self._state_index(i, 1)
+            i_index = self._state_index(i, 2)
+            r_index = self._state_index(i, 3)
+
+            s_value = state[s_index]
+            e_value = state[e_index]
+            i_value = state[i_index]
+            r_value = state[r_index]
+
+            infection_pressure = sum(self.contact_matrix[i][j] * infected[j] for j in range(len(self.populations)))
+            infection_flow = s_value * infection_pressure
+
+            sigma = self._sigmas[i]
+            gamma = self._gammas[i]
+            omega = self._omegas[i]
+
+            if sigma is None:
+                ds_dt = -infection_flow + omega * r_value
+                de_dt = 0.0
+                di_dt = infection_flow - gamma * i_value
+                dr_dt = gamma * i_value - omega * r_value
+            else:
+                ds_dt = -infection_flow + omega * r_value
+                de_dt = infection_flow - sigma * e_value
+                di_dt = sigma * e_value - gamma * i_value
+                dr_dt = gamma * i_value - omega * r_value
+
+            derivatives[s_index] = ds_dt
+            derivatives[e_index] = de_dt
+            derivatives[i_index] = di_dt
+            derivatives[r_index] = dr_dt
+
+        return tuple(derivatives)
+
+    def _normalize_state(self, state: StateVector) -> StateVector:
+        normalized: list[float] = list(state)
+
+        for i in range(len(self.populations)):
+            s_index = self._state_index(i, 0)
+            e_index = self._state_index(i, 1)
+            i_index = self._state_index(i, 2)
+            r_index = self._state_index(i, 3)
+
+            s = max(0.0, normalized[s_index])
+            e = max(0.0, normalized[e_index])
+            infected = max(0.0, normalized[i_index])
+            recovered = max(0.0, normalized[r_index])
+
+            total = s + e + infected + recovered
+            correction = self._sizes[i] - total
+            s = max(0.0, s + correction)
+
+            normalized[s_index] = s
+            normalized[e_index] = e
+            normalized[i_index] = infected
+            normalized[r_index] = recovered
+
+        return tuple(normalized)
+
+    def _structured_state_point(self, time: float, state: StateVector) -> StructuredStatePoint:
+        by_population: dict[str, StatePoint] = {}
+        for i, name in enumerate(self._names):
+            offset = self._state_index(i, 0)
+            by_population[name] = StatePoint(
+                time=time,
+                susceptible=state[offset],
+                exposed=state[offset + 1],
+                infected=state[offset + 2],
+                recovered=state[offset + 3],
+            )
+        return StructuredStatePoint(time=time, by_population=by_population)
+
+    def simulate(self) -> list[StructuredStatePoint]:
+        """Run the simulation and return sampled multi-population state points."""
+
+        dt = self.simulation.time_step
+        steps = int(round(self.simulation.duration / dt))
+        state = self._initial_state()
+
+        trajectory = [self._structured_state_point(0.0, state)]
+
+        for step in range(1, steps + 1):
+            raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
+            state = self._normalize_state(raw_state)
+            if step % self.simulation.output_stride == 0:
+                trajectory.append(self._structured_state_point(step * dt, state))
 
         return trajectory

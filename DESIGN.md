@@ -252,6 +252,31 @@ Note: the Lloyd-Smith lab connection is substantive, not incidental. Jamie Lloyd
 
 ---
 
+## Epistemic Workflow (How This Model Is Used)
+
+This project is explicitly about iterative uncertainty reduction, not one-shot certainty. Early outbreak data can be incomplete, apparently contradictory, and context-dependent. The modeling process should therefore be:
+
+1. Generate competing, falsifiable hypotheses.
+2. Translate each hypothesis into explicit structural assumptions (for example, contact topology, bridge directionality, transmission context).
+3. Derive predicted qualitative signatures from each hypothesis.
+4. Compare predictions against current observations.
+5. Update assumptions and rerun as new data arrives.
+
+Key rule: if observed behavior and model predictions diverge, treat that as a model-improvement signal, not a reason to force-fit observations.
+
+### Practical Interpretation for This Project
+
+- Population structure is treated as a major uncertainty axis, not a fixed truth.
+- Scenario runs should be framed as "what would we expect if this mechanism were true?" rather than "proof".
+- Notebook narratives should distinguish:
+    - what is directly observed,
+    - what is assumed,
+    - what would falsify the current assumption set.
+
+This framing is especially important when evaluating whether outbreaks in different contexts should or should not extrapolate cleanly from one another.
+
+---
+
 ## Open Questions
 
 - Pyodide feasibility for the Observable deployment (investigate early)
