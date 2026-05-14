@@ -3,6 +3,7 @@ Colab
 dataclasses
 epidemiologically
 exponentials
+figsize
 frontmatter
 Getz
 htmlcov
@@ -13,6 +14,7 @@ ipywidgets
 Kermack
 Kopp
 Kutta
+matplotlib
 Moderna
 mypy
 PLOS
@@ -34,4 +36,6 @@ TMMC
 Toggleable
 venv
 virtualenv
+xlabel
+ylabel
 βᵢⱼSᵢIⱼ

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.29.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -12,7 +12,11 @@ license = { file = "LICENSE" }
 authors = [
   { name = "Bob Kerns" }
 ]
-dependencies = []
+dependencies = [
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.9",
+    "pandas>=3.0.3",
+]
 
 [project.optional-dependencies]
 dev = []
