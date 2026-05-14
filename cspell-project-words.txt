@@ -1,9 +1,14 @@
+arrowstyle
 behaviour
 Colab
+connectionstyle
 dataclasses
+edgecolor
 epidemiologically
 exponentials
+facecolor
 figsize
+fontsize
 frontmatter
 Getz
 htmlcov
@@ -40,5 +45,7 @@ Toggleable
 venv
 virtualenv
 xlabel
+xlim
 ylabel
+ylim
 βᵢⱼSᵢIⱼ

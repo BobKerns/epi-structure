@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+from .interventions import InterventionPlan
 from .parameters import PopulationParameters, SimulationParameters
 
 
@@ -166,6 +167,7 @@ class StructuredEpidemicModel:
         populations: list[PopulationParameters],
         contact_matrix: list[list[float]],
         simulation: SimulationParameters,
+        intervention_plan: InterventionPlan | None = None,
         stepper: StateStepper | None = None,
     ) -> None:
         if not populations:
@@ -174,6 +176,7 @@ class StructuredEpidemicModel:
         self.populations = populations
         self.simulation = simulation
         self.stepper = stepper or RK4Stepper()
+        self.intervention_plan = intervention_plan
         self.contact_matrix = self._validate_contact_matrix(contact_matrix, len(populations))
 
         self._names = [population.name for population in populations]
@@ -187,6 +190,7 @@ class StructuredEpidemicModel:
             0.0 if population.disease.waning_period is None else 1.0 / population.disease.waning_period
             for population in populations
         ]
+        self._active_contact_matrix = [row[:] for row in self.contact_matrix]
 
     @staticmethod
     def _validate_contact_matrix(contact_matrix: list[list[float]], count: int) -> list[list[float]]:
@@ -225,7 +229,9 @@ class StructuredEpidemicModel:
             i_value = state[i_index]
             r_value = state[r_index]
 
-            infection_pressure = sum(self.contact_matrix[i][j] * infected[j] for j in range(len(self.populations)))
+            infection_pressure = sum(
+                self._active_contact_matrix[i][j] * infected[j] for j in range(len(self.populations))
+            )
             infection_flow = s_value * infection_pressure
 
             sigma = self._sigmas[i]
@@ -298,6 +304,16 @@ class StructuredEpidemicModel:
         trajectory = [self._structured_state_point(0.0, state)]
 
         for step in range(1, steps + 1):
+            current_time = (step - 1) * dt
+            if self.intervention_plan is None:
+                self._active_contact_matrix = [row[:] for row in self.contact_matrix]
+            else:
+                self._active_contact_matrix = self.intervention_plan.matrix_at_time(
+                    base_contact_matrix=self.contact_matrix,
+                    population_names=self._names,
+                    time=current_time,
+                )
+
             raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
             state = self._normalize_state(raw_state)
             if step % self.simulation.output_stride == 0:

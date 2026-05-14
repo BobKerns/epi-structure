@@ -6,6 +6,7 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 
 - `exploration.ipynb`: A sample notebook for driving the simulation engine with example data.
 - `contact_matrix_exploration.ipynb`: A focused two-population example using `StructuredEpidemicModel` and a lightweight named matrix builder.
+- `05_interventions.ipynb`: Illustrates how familiar policy framings map to matrix-scaling interventions, includes a group/bridge link map visualization, and compares scenario outcomes.
 
 ## Contact Matrix UX Pattern
 
