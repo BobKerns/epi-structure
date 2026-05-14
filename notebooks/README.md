@@ -4,9 +4,38 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 
 ## Current Notebooks
 
-- `exploration.ipynb`: A sample notebook for driving the simulation engine with example data.
-- `contact_matrix_exploration.ipynb`: A focused two-population example using `StructuredEpidemicModel` and a lightweight named matrix builder.
-- `05_interventions.ipynb`: Illustrates how familiar policy framings map to matrix-scaling interventions, includes a group/bridge link map visualization, and compares scenario outcomes.
+### Pedagogical Sequence (Foundation-First)
+
+**01_sir.ipynb**: SIR model with R₀ sensitivity analysis
+- Simplest compartmental model (no latent period, permanent immunity)
+- Baseline dynamics and visualization
+- Effective reproduction number R_t over time
+- **Teaching focus**: R₀ sensitivity, intuition failures (nonlinear outcomes), extrapolation failures
+- Demonstrates how small changes in R₀ produce large changes in peak infections and attack rate
+- Early exponential fit vs full trajectory comparison
+
+**02_seir.ipynb** (upcoming): SEIR model adds latent period
+- S → E → I → R progression
+- How latent period affects timing and peak while R₀ remains constant
+- Comparison with SIR baseline
+
+**03_seirs.ipynb** (upcoming): SEIRS adds waning immunity
+- Full loop with loss of immunity
+- Endemic equilibrium and cycle behavior
+- How R₀ relates to endemic prevalence
+
+**04_two_population.ipynb** (upcoming): Multi-population dynamics
+- Two populations (general + cluster) with contact matrix
+- Within-group and bridge transmission
+- How coupling affects each population differently
+- Effective R₀ is population-dependent
+
+### Applied Examples
+
+- **05_interventions.ipynb**: Policy language to matrix-scaling transformations
+  - Ventilation, tracing, distancing as transmission scalar interventions
+  - Group/bridge link visualization with subset-selection + transformation pattern
+  - Scenario comparison (baseline, cluster ventilation, bridge tracing, targeted combo)
 
 ## Contact Matrix UX Pattern
 
