@@ -7,6 +7,7 @@ Colab
 connectionstyle
 dataclasses
 edgecolor
+eigvals
 epidemiologically
 exponentials
 extrap
@@ -25,17 +26,21 @@ ipywidgets
 Kermack
 Kopp
 Kutta
+linalg
 linestyle
 markersize
 matplotlib
 Moderna
 mypy
+ncol
+nsteps
 PLOS
 polyfit
 pycache
 Pyodide
 pyproject
 pytest
+reff
 rspa
 Runge
 Schreiber
@@ -49,6 +54,7 @@ Stepsize
 Sturgis
 Superspreading
 suptitle
+susceptibles
 timepoint
 TMMC
 Toggleable
