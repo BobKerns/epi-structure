@@ -17,6 +17,7 @@ from .model import (
     StructuredStatePoint,
 )
 from .parameters import DiseaseParameters, PopulationParameters, SimulationParameters
+from .scenarios import Scenario, get_scenario, list_scenarios
 
 __all__ = [
     "build_contact_matrix",
@@ -24,12 +25,15 @@ __all__ = [
     "compose_intervention_plan",
     "DiseaseParameters",
     "EpidemicModel",
+    "get_scenario",
     "InterventionPlan",
     "intervene_bridge_links",
     "intervene_within_groups",
+    "list_scenarios",
     "PopulationParameters",
     "preset_general_cluster",
     "RK4Stepper",
+    "Scenario",
     "SimulationParameters",
     "StatePoint",
     "StateStepper",
