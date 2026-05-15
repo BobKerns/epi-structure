@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
 from typing import Iterable
 
 import matplotlib.pyplot as plt
@@ -14,6 +16,30 @@ from .model import StructuredEpidemicModel, StructuredStatePoint
 from .scenarios import Scenario, get_scenario
 
 
+def reload_package_modules(package_name: str = "epi_structure"):
+    """Reload a package and all currently loaded submodules under it.
+
+    This is primarily intended for notebook workflows where iterative edits
+    should be reflected without maintaining a manual list of module reloads.
+    """
+
+    root = importlib.import_module(package_name)
+    module_names = [
+        name
+        for name in sys.modules
+        if name == package_name or name.startswith(f"{package_name}.")
+    ]
+    module_names.sort(key=lambda name: name.count("."), reverse=True)
+
+    for module_name in module_names:
+        module = sys.modules.get(module_name)
+        if module is None:
+            continue
+        importlib.reload(module)
+
+    return importlib.import_module(package_name)
+
+
 def run_scenario(
     scenario: str | Scenario,
     simulation=None,
@@ -22,6 +48,8 @@ def run_scenario(
 ) -> list[StructuredStatePoint]:
     """Run a scenario by name or object, with optional simulation and matrix overrides."""
     scenario_obj = get_scenario(scenario) if isinstance(scenario, str) else scenario
+    if not isinstance(scenario_obj, Scenario) and hasattr(scenario_obj, "build"):
+        scenario_obj = scenario_obj.build()
 
     model = StructuredEpidemicModel(
         populations=scenario_obj.populations,

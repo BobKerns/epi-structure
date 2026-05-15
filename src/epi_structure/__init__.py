@@ -17,7 +17,7 @@ from .model import (
     StructuredStatePoint,
 )
 from .parameters import DiseaseParameters, PopulationParameters, SimulationParameters
-from .scenarios import Scenario, get_scenario, list_scenarios
+from .scenarios import Scenario, ScenarioBuilder, get_scenario, list_scenarios
 from .notebook_helpers import (
     draw_group_bridge_map,
     effective_matrix,
@@ -29,6 +29,7 @@ from .notebook_helpers import (
     plot_seir_trajectory,
     plot_seirs_trajectory,
     plot_sir_trajectory,
+    reload_package_modules,
     run_scenario,
     show_params,
     simulate_seir_euler,
@@ -61,9 +62,11 @@ __all__ = [
     "plot_sir_trajectory",
     "PopulationParameters",
     "preset_general_cluster",
+    "reload_package_modules",
     "RK4Stepper",
     "run_scenario",
     "Scenario",
+    "ScenarioBuilder",
     "SimulationParameters",
     "StatePoint",
     "StateStepper",
