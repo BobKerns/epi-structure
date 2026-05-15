@@ -20,8 +20,10 @@ frontmatter
 Getz
 gridspec
 htmlcov
+inplace
 inspectable
 interpretability
+ipykernel
 ipynb
 ipywidgets
 Kermack
@@ -33,6 +35,7 @@ markersize
 matplotlib
 Moderna
 mypy
+nbconvert
 ncol
 nsteps
 PLOS

@@ -64,6 +64,19 @@ For quick exploratory work, prefer building contact matrices from:
 
 This keeps configuration readable while still producing a full square matrix for the engine.
 
+## Scenario Builder API Pattern
+
+For structured scenarios, prefer the scenario-centered builder API over ad hoc matrix mutation:
+
+- start from a seed or base scenario: `Scenario.builder(base=...)`
+- register/adjust populations as needed
+- set transitions explicitly with `.transition(recipient, source, value)`
+- read or tweak one transition with indexing syntax:
+   - lookup: `scenario["general", "cluster"]`
+   - assignment: `scenario["general", "cluster"] = new_value`
+
+This keeps scenario definitions and matrix edits explicit, reproducible, and easier to compare across notebook variants.
+
 ## Usage
 
 To run the notebooks, ensure you have the required environment set up:

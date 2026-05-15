@@ -28,7 +28,15 @@ from .parameters import (
 
 @dataclass
 class Scenario:
-    """A complete simulation scenario: populations, contact matrix, and interventions."""
+    """A complete simulation scenario: populations, contact matrix, and interventions.
+
+    Common usage patterns:
+
+    - Build variants from an existing scenario with ``Scenario.builder(base=...)``.
+    - Read one transition using tuple indexing, e.g. ``scenario["general", "cluster"]``.
+    - Manually tweak one transition using assignment,
+        e.g. ``scenario["general", "cluster"] = 0.0001``.
+    """
 
     name: str
     description: str
