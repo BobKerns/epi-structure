@@ -111,7 +111,6 @@ class Scenario:
         return pd.DataFrame(self.contact_matrix, index=self._population_names, columns=self._population_names)
 
 
-
 class ScenarioBuilder:
     """Builder for assembling a scenario incrementally.
 

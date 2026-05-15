@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+import pandas as pd
+
 from .interventions import InterventionPlan
 from .parameters import PopulationParameters, SimulationParameters
 
@@ -353,3 +355,7 @@ class StructuredEpidemicModel:
                     "total_population": pop_state.total_population,
                 })
         return pd.DataFrame(records)
+
+    def contact_matrix_df(self) -> pd.DataFrame:
+        """Return the contact matrix as a pandas DataFrame with population names as index/columns."""
+        return pd.DataFrame(self.contact_matrix, index=self._population_names, columns=self._population_names)
