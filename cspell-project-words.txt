@@ -52,6 +52,7 @@ seirs
 semilogy
 Sfrac
 sharex
+spillback
 sportsnow
 Stepsize
 Sturgis

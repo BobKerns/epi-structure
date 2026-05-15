@@ -30,8 +30,6 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 - How coupling affects each population differently
 - Effective R₀ is population-dependent
 
-
-
 **05_superspreader_party_crawl.ipynb**: Sparse coupling and re-seeding dynamics
 - General-only subcritical regime ($R_0 < 1$) contrasted with coupled cluster dynamics
 - Superspreader cluster surges and spillback into the general population
