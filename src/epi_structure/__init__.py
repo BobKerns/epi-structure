@@ -11,6 +11,7 @@ from .interventions import (
 from .model import (
     EpidemicModel,
     RK4Stepper,
+    ScenarioState,
     StatePoint,
     StateStepper,
     StructuredEpidemicModel,
@@ -67,6 +68,7 @@ __all__ = [
     "run_scenario",
     "Scenario",
     "ScenarioBuilder",
+    "ScenarioState",
     "SimulationParameters",
     "StatePoint",
     "StateStepper",

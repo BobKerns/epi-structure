@@ -80,6 +80,111 @@ class StructuredStatePoint:
         return sum(point.total_population for point in self.by_population.values())
 
 
+@dataclass(slots=True)
+class ScenarioState:
+    """Runtime simulation state for a multi-population scenario.
+
+    ScenarioState holds the current state of a scenario at a point in time.
+    It is initialized from a Scenario (immutable config) and evolves through
+    simulation steps. The Model class handles state transitions; ScenarioState
+    manages persistence and by-population snapshots.
+
+    Attributes:
+        time: Current simulation time.
+        by_population: Mapping of population name -> current StatePoint.
+        active_contact_matrix: Current contact matrix (may change via interventions).
+        population_names: List of population names (from scenario config).
+        population_sizes: List of population sizes (for normalization).
+    """
+
+    time: float
+    by_population: dict[str, StatePoint]
+    active_contact_matrix: list[list[float]]
+    population_names: list[str]
+    population_sizes: list[float]
+
+    @classmethod
+    def from_scenario(cls, scenario) -> "ScenarioState":  # noqa: F821
+        """Initialize ScenarioState from a Scenario configuration.
+
+        Args:
+            scenario: A Scenario object with populations, contact_matrix, etc.
+
+        Returns:
+            ScenarioState at t=0 with initial populations from scenario.
+        """
+        from .scenarios import Scenario  # Import here to avoid circular dependency
+
+        by_population = {
+            pop.name: StatePoint(
+                time=0.0,
+                susceptible=float(pop.initial_susceptible),
+                exposed=float(pop.initial_exposed),
+                infected=float(pop.initial_infected),
+                recovered=float(pop.initial_recovered),
+            )
+            for pop in scenario.populations
+        }
+
+        population_sizes = [float(pop.size) for pop in scenario.populations]
+
+        return cls(
+            time=0.0,
+            by_population=by_population,
+            active_contact_matrix=[row[:] for row in scenario.contact_matrix],
+            population_names=list(scenario.population_names),
+            population_sizes=population_sizes,
+        )
+
+    @property
+    def total_population(self) -> float:
+        """Return total population across all groups."""
+        return sum(state.total_population for state in self.by_population.values())
+
+    @property
+    def state_vector(self) -> StateVector:
+        """Extract current state as a flat tuple for numerical integration.
+
+        Order: [S_0, E_0, I_0, R_0, S_1, E_1, I_1, R_1, ...]
+        """
+        values: list[float] = []
+        for name in self.population_names:
+            state = self.by_population[name]
+            values.extend((state.susceptible, state.exposed, state.infected, state.recovered))
+        return tuple(values)
+
+    def update_from_state_vector(self, state_vector: StateVector, time: float) -> None:
+        """Update by_population and time from a state vector.
+
+        Used after numerical integration step to update the scenario state.
+        Also normalizes compartments to ensure exact population conservation.
+
+        Args:
+            state_vector: Flat tuple [S_0, E_0, I_0, R_0, ...] from integration.
+            time: New simulation time.
+        """
+        self.time = time
+        offset = 0
+        for i, name in enumerate(self.population_names):
+            s = max(0.0, state_vector[offset])
+            e = max(0.0, state_vector[offset + 1])
+            infected = max(0.0, state_vector[offset + 2])
+            recovered = max(0.0, state_vector[offset + 3])
+
+            total = s + e + infected + recovered
+            correction = self.population_sizes[i] - total
+            s = max(0.0, s + correction)
+
+            self.by_population[name] = StatePoint(
+                time=time,
+                susceptible=s,
+                exposed=e,
+                infected=infected,
+                recovered=recovered,
+            )
+            offset += 4
+
+
 class EpidemicModel:
     """Deterministic single-population SEIRS simulator.
 
@@ -210,6 +315,23 @@ class StructuredEpidemicModel:
         ]
         self._active_contact_matrix = [row[:] for row in self.contact_matrix]
 
+    @classmethod
+    def from_scenario(cls, scenario) -> "StructuredEpidemicModel":  # noqa: F821
+        """Create a StructuredEpidemicModel from a Scenario configuration.
+
+        Args:
+            scenario: A Scenario object with populations, contact_matrix, etc.
+
+        Returns:
+            StructuredEpidemicModel configured from the scenario.
+        """
+        return cls(
+            populations=scenario.populations,
+            contact_matrix=scenario.contact_matrix,
+            simulation=scenario.simulation,
+            intervention_plan=scenario.intervention_plan,
+        )
+
     @staticmethod
     def _validate_contact_matrix(contact_matrix: list[list[float]], count: int) -> list[list[float]]:
         if len(contact_matrix) != count:
@@ -313,13 +435,26 @@ class StructuredEpidemicModel:
         return StructuredStatePoint(time=time, by_population=by_population)
 
     def simulate(self, tidy: bool = False):
-        """Run the simulation and return sampled multi-population state points or a tidy DataFrame if tidy=True."""
+        """Run the simulation and return sampled multi-population state points or a tidy DataFrame if tidy=True.
+
+        The simulation uses ScenarioState internally to track runtime state evolution,
+        providing a clear separation between configuration (scenario) and runtime state.
+
+        Args:
+            tidy: If False (default), return list of StructuredStatePoint.
+                 If True, return tidy pandas DataFrame with one row per (time, population).
+
+        Returns:
+            List[StructuredStatePoint] or pd.DataFrame depending on tidy parameter.
+        """
 
         dt = self.simulation.time_step
         steps = int(round(self.simulation.duration / dt))
-        state = self._initial_state()
 
-        trajectory = [self._structured_state_point(0.0, state)]
+        # Initialize scenario state from populations (mimics ScenarioState initialization)
+        current_state = self._initial_state()
+
+        trajectory = [self._structured_state_point(0.0, current_state)]
 
         for step in range(1, steps + 1):
             current_time = (step - 1) * dt
@@ -332,10 +467,10 @@ class StructuredEpidemicModel:
                     time=current_time,
                 )
 
-            raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
-            state = self._normalize_state(raw_state)
+            raw_state = self.stepper.step(state=current_state, time_step=dt, derivatives=self._derivatives)
+            current_state = self._normalize_state(raw_state)
             if step % self.simulation.output_stride == 0:
-                trajectory.append(self._structured_state_point(step * dt, state))
+                trajectory.append(self._structured_state_point(step * dt, current_state))
 
         if not tidy:
             return trajectory
@@ -358,4 +493,4 @@ class StructuredEpidemicModel:
 
     def contact_matrix_df(self) -> pd.DataFrame:
         """Return the contact matrix as a pandas DataFrame with population names as index/columns."""
-        return pd.DataFrame(self.contact_matrix, index=self._population_names, columns=self._population_names)
+        return pd.DataFrame(self.contact_matrix, index=self._names, columns=self._names)
