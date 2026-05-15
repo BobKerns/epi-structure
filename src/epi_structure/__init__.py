@@ -26,8 +26,16 @@ from .notebook_helpers import (
     intervention_targets,
     plot_matrix_transformation,
     plot_population_infected_comparison,
+    plot_seir_trajectory,
+    plot_seirs_trajectory,
+    plot_sir_trajectory,
     run_scenario,
+    show_params,
+    simulate_seir_euler,
+    simulate_seirs_euler,
+    simulate_sir_euler,
     summarize_two_population_runs,
+    trajectory_to_df,
 )
 
 __all__ = [
@@ -48,6 +56,9 @@ __all__ = [
     "list_scenarios",
     "plot_matrix_transformation",
     "plot_population_infected_comparison",
+    "plot_seir_trajectory",
+    "plot_seirs_trajectory",
+    "plot_sir_trajectory",
     "PopulationParameters",
     "preset_general_cluster",
     "RK4Stepper",
@@ -58,6 +69,11 @@ __all__ = [
     "StateStepper",
     "StructuredEpidemicModel",
     "StructuredStatePoint",
+    "show_params",
+    "simulate_seir_euler",
+    "simulate_seirs_euler",
+    "simulate_sir_euler",
     "summarize_two_population_runs",
+    "trajectory_to_df",
 ]
 __version__ = "0.1.0"

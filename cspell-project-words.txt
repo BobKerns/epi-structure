@@ -63,6 +63,7 @@ venv
 virtualenv
 xlabel
 xlim
+xscale
 xticks
 ylabel
 ylim
