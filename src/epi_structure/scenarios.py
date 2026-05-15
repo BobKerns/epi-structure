@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+import pandas as pd
+
 from .contact_matrix import preset_general_cluster
 from .interventions import (
     InterventionPlan,
@@ -103,6 +105,11 @@ class Scenario:
             simulation=simulation,
             intervention_plan=intervention_plan,
         )
+    
+    def contact_matrix_df(self) -> pd.DataFrame:
+        """Return the contact matrix as a pandas DataFrame with population names as index/columns."""
+        return pd.DataFrame(self.contact_matrix, index=self._population_names, columns=self._population_names)
+
 
 
 class ScenarioBuilder:

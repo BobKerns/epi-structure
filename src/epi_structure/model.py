@@ -136,8 +136,8 @@ class EpidemicModel:
         s = max(0.0, s + correction)
         return s, e, i, r
 
-    def simulate(self) -> list[StatePoint]:
-        """Run the simulation and return sampled state points."""
+    def simulate(self, tidy: bool = False):
+        """Run the simulation and return sampled state points or a tidy DataFrame if tidy=True."""
 
         dt = self.simulation.time_step
         steps = int(round(self.simulation.duration / dt))
@@ -151,7 +151,23 @@ class EpidemicModel:
             if step % self.simulation.output_stride == 0:
                 trajectory.append(StatePoint(step * dt, *state))
 
-        return trajectory
+        if not tidy:
+            return trajectory
+
+        # Tidy DataFrame: one row per time, one column per compartment
+        import pandas as pd
+        records = [
+            {
+                "time": pt.time,
+                "susceptible": pt.susceptible,
+                "exposed": pt.exposed,
+                "infected": pt.infected,
+                "recovered": pt.recovered,
+                "total_population": pt.total_population,
+            }
+            for pt in trajectory
+        ]
+        return pd.DataFrame(records)
 
 
 class StructuredEpidemicModel:
@@ -294,8 +310,8 @@ class StructuredEpidemicModel:
             )
         return StructuredStatePoint(time=time, by_population=by_population)
 
-    def simulate(self) -> list[StructuredStatePoint]:
-        """Run the simulation and return sampled multi-population state points."""
+    def simulate(self, tidy: bool = False):
+        """Run the simulation and return sampled multi-population state points or a tidy DataFrame if tidy=True."""
 
         dt = self.simulation.time_step
         steps = int(round(self.simulation.duration / dt))
@@ -319,4 +335,21 @@ class StructuredEpidemicModel:
             if step % self.simulation.output_stride == 0:
                 trajectory.append(self._structured_state_point(step * dt, state))
 
-        return trajectory
+        if not tidy:
+            return trajectory
+
+        # Tidy DataFrame: one row per time, population, compartment
+        import pandas as pd
+        records = []
+        for pt in trajectory:
+            for pop_name, pop_state in pt.by_population.items():
+                records.append({
+                    "time": pt.time,
+                    "population": pop_name,
+                    "susceptible": pop_state.susceptible,
+                    "exposed": pop_state.exposed,
+                    "infected": pop_state.infected,
+                    "recovered": pop_state.recovered,
+                    "total_population": pop_state.total_population,
+                })
+        return pd.DataFrame(records)
