@@ -1,6 +1,7 @@
 arrowstyle
 axhline
 axvline
+axvspan
 behaviour
 coeffs
 Colab
@@ -40,6 +41,7 @@ pycache
 Pyodide
 pyproject
 pytest
+Qeff
 reff
 rspa
 Runge
@@ -48,6 +50,7 @@ scipy
 seir
 seirs
 semilogy
+Sfrac
 sharex
 sportsnow
 Stepsize

@@ -14,28 +14,47 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 - Demonstrates how small changes in R₀ produce large changes in peak infections and attack rate
 - Early exponential fit vs full trajectory comparison
 
-**02_seir.ipynb** (upcoming): SEIR model adds latent period
+**02_seir.ipynb**: SEIR model adds latent period
 - S → E → I → R progression
 - How latent period affects timing and peak while R₀ remains constant
 - Comparison with SIR baseline
 
-**03_seirs.ipynb** (upcoming): SEIRS adds waning immunity
+**03_seirs.ipynb**: SEIRS adds waning immunity
 - Full loop with loss of immunity
 - Endemic equilibrium and cycle behavior
 - How R₀ relates to endemic prevalence
 
-**04_two_population.ipynb** (upcoming): Multi-population dynamics
+**04_two_population.ipynb**: Multi-population dynamics
 - Two populations (general + cluster) with contact matrix
 - Within-group and bridge transmission
 - How coupling affects each population differently
 - Effective R₀ is population-dependent
 
+
+
+**05_superspreader_party_crawl.ipynb**: Sparse coupling and re-seeding dynamics
+- General-only subcritical regime ($R_0 < 1$) contrasted with coupled cluster dynamics
+- Superspreader cluster surges and spillback into the general population
+
+**06_rt_wells_riley_decomposition.ipynb**: Mechanistic $R_t$ decomposition
+- Decomposes $R_t$ into contact rate, infectious duration, susceptibility, and per-contact infection probability
+- Uses a Wells-Riley style dose model for infection probability terms
+
+**07_interventions.ipynb**: Policy language to matrix-scaling transformations
+   - Ventilation, tracing, distancing as transmission scalar interventions
+   - Group/bridge link visualization with subset-selection + transformation pattern
+   - Scenario comparison (baseline, cluster ventilation, bridge tracing, targeted combo)
+
+**08_timed_interventions.ipynb**: Time-varying interventions
+- Component-level policy schedules for $c_t$ and Wells-Riley terms
+- Time-bounded matrix interventions in the structured model
+
 ### Applied Examples
 
-- **05_interventions.ipynb**: Policy language to matrix-scaling transformations
-  - Ventilation, tracing, distancing as transmission scalar interventions
-  - Group/bridge link visualization with subset-selection + transformation pattern
-  - Scenario comparison (baseline, cluster ventilation, bridge tracing, targeted combo)
+-- **07_interventions.ipynb**: Policy language to matrix-scaling transformations
+   - Ventilation, tracing, distancing as transmission scalar interventions
+   - Group/bridge link visualization with subset-selection + transformation pattern
+   - Scenario comparison (baseline, cluster ventilation, bridge tracing, targeted combo)
 
 ## Contact Matrix UX Pattern
 
