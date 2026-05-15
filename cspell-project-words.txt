@@ -51,6 +51,7 @@ Runge
 Schreiber
 scipy
 seir
+seird
 seirs
 semilogy
 Sfrac
