@@ -14,6 +14,7 @@ exponentials
 extrap
 facecolor
 figsize
+fontfamily
 fontsize
 fontweight
 frontmatter
@@ -50,6 +51,7 @@ rspa
 Runge
 Schreiber
 scipy
+SEIARD
 seir
 seird
 seirs
@@ -68,10 +70,12 @@ TMMC
 Toggleable
 traj
 venv
+verticalalignment
 virtualenv
 xlabel
 xlim
 xscale
+xticklabels
 xticks
 ylabel
 ylim

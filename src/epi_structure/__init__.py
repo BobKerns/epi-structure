@@ -10,6 +10,7 @@ from .interventions import (
 )
 from .model import (
     EpidemicModel,
+    GeneralizedStatePoint,
     RK4Stepper,
     ScenarioState,
     StatePoint,
@@ -48,6 +49,7 @@ __all__ = [
     "draw_group_bridge_map",
     "effective_matrix",
     "EpidemicModel",
+    "GeneralizedStatePoint",
     "get_contact_matrix",
     "get_intervention_plan",
     "get_scenario",

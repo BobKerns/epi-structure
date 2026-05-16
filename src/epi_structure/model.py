@@ -51,7 +51,11 @@ class RK4Stepper:
 
 @dataclass(frozen=True, slots=True)
 class StatePoint:
-    """State snapshot at a single simulation time."""
+    """State snapshot at a single simulation time.
+    
+    Legacy SEIR-specific format. Maintained for backward compatibility.
+    For generalized compartments, use GeneralizedStatePoint.
+    """
 
     time: float
     susceptible: float
@@ -64,6 +68,28 @@ class StatePoint:
         """Return total population represented by this state."""
 
         return self.susceptible + self.exposed + self.infected + self.recovered
+
+
+@dataclass(frozen=True, slots=True)
+class GeneralizedStatePoint:
+    """State snapshot for flexible compartment models (SEIR, SEIRD, etc.).
+    
+    Stores compartment values in a dict, keyed by compartment name.
+    Supports arbitrary compartment lists while maintaining a clear interface.
+    """
+    
+    time: float
+    compartments: tuple[str, ...]  # Ordered list of compartment names
+    values: dict[str, float]  # Compartment name -> current count/proportion
+    
+    @property
+    def total_population(self) -> float:
+        """Return sum of all compartments (population size)."""
+        return sum(self.values.values())
+    
+    def get(self, compartment: str) -> float:
+        """Get value for a specific compartment."""
+        return self.values.get(compartment, 0.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,65 +241,150 @@ class EpidemicModel:
         )
 
     def _derivatives(self, state: StateVector) -> StateVector:
-        s, e, i, r = state
-        infection_flow = self.population.beta * s * i
-
+        """Compute derivatives for current state.
+        
+        Supports both SEIR (4 compartments) and SEIRD (5 compartments).
+        For SEIRD, the case_fatality_rate determines the split between
+        recovery (1-CFR) and death (CFR) flows from infectious state.
+        """
+        compartments = self.population.disease.compartments
+        has_deceased = "D" in compartments
+        
+        if has_deceased:
+            # SEIRD model: S, E, I, R, D
+            if len(state) != 5:
+                raise ValueError(f"SEIRD model requires 5-element state, got {len(state)}")
+            s, e, i, r, d = state
+        else:
+            # SEIR model: S, E, I, R
+            if len(state) != 4:
+                raise ValueError(f"SEIR model requires 4-element state, got {len(state)}")
+            s, e, i, r = state
+            d = None
+        
+        infection_flow = self.population.beta * s * i / self.population.size
+        
+        # Base transitions (S → E → I → R/D with optional waning)
         if self._sigma is None:
+            # SIR variant: no exposed state
             ds_dt = -infection_flow + self._omega * r
             de_dt = 0.0
             di_dt = infection_flow - self._gamma * i
             dr_dt = self._gamma * i - self._omega * r
+            if has_deceased:
+                # Split recovery into R and D based on CFR
+                cfr = self.population.disease.case_fatality_rate
+                dr_dt = (1.0 - cfr) * self._gamma * i - self._omega * r
+                dd_dt = cfr * self._gamma * i
         else:
+            # SEIR(D) variant: exposed state present
             ds_dt = -infection_flow + self._omega * r
             de_dt = infection_flow - self._sigma * e
             di_dt = self._sigma * e - self._gamma * i
             dr_dt = self._gamma * i - self._omega * r
-
-        return ds_dt, de_dt, di_dt, dr_dt
+            if has_deceased:
+                # Split recovery into R and D based on CFR
+                cfr = self.population.disease.case_fatality_rate
+                dr_dt = (1.0 - cfr) * self._gamma * i - self._omega * r
+                dd_dt = cfr * self._gamma * i
+        
+        if has_deceased:
+            return ds_dt, de_dt, di_dt, dr_dt, dd_dt
+        else:
+            return ds_dt, de_dt, di_dt, dr_dt
 
     @staticmethod
-    def _normalize_state(state: StateVector, expected_total: float) -> StateVector:
-        # Guard against small negative drift from finite-precision arithmetic.
-        s = max(0.0, state[0])
-        e = max(0.0, state[1])
-        i = max(0.0, state[2])
-        r = max(0.0, state[3])
-        total = s + e + i + r
-        correction = expected_total - total
-        s = max(0.0, s + correction)
-        return s, e, i, r
+    def _normalize_state(state: StateVector, expected_total: float, compartments: list[str]) -> StateVector:
+        """Normalize state vector to ensure exact population conservation.
+        
+        Guards against small negative drift from finite-precision arithmetic.
+        Works for both SEIR (4 elements) and SEIRD (5 elements).
+        """
+        has_deceased = "D" in compartments
+        
+        # Guard against small negative drift
+        if has_deceased:
+            s, e, i, r, d = state
+            s = max(0.0, s)
+            e = max(0.0, e)
+            i = max(0.0, i)
+            r = max(0.0, r)
+            d = max(0.0, d)
+            total = s + e + i + r + d
+            correction = expected_total - total
+            s = max(0.0, s + correction)
+            return s, e, i, r, d
+        else:
+            s = max(0.0, state[0])
+            e = max(0.0, state[1])
+            i = max(0.0, state[2])
+            r = max(0.0, state[3])
+            total = s + e + i + r
+            correction = expected_total - total
+            s = max(0.0, s + correction)
+            return s, e, i, r
 
     def simulate(self, tidy: bool = False):
-        """Run the simulation and return sampled state points or a tidy DataFrame if tidy=True."""
+        """Run the simulation and return sampled state points or a tidy DataFrame if tidy=True.
+        
+        Supports both SEIR and SEIRD models based on disease.compartments.
+        """
 
         dt = self.simulation.time_step
         steps = int(round(self.simulation.duration / dt))
-        state: StateVector = tuple(float(v) for v in self.population.initial_state)
+        
+        # Build initial state vector from compartments in order
+        compartments = self.population.disease.compartments
+        initial_state_dict = self.population.initial_state_by_compartment()
+        state: StateVector = tuple(initial_state_dict[c] for c in compartments)
 
-        trajectory = [StatePoint(0.0, *state)]
+        trajectory = [StatePoint(0.0, *state)] if "D" not in compartments else [
+            StatePoint(0.0, state[0], state[1], state[2], state[3])
+        ]
 
         for step in range(1, steps + 1):
             raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
-            state = self._normalize_state(raw_state, float(self.population.size))
+            state = self._normalize_state(raw_state, float(self.population.size), compartments)
             if step % self.simulation.output_stride == 0:
-                trajectory.append(StatePoint(step * dt, *state))
+                if "D" not in compartments:
+                    trajectory.append(StatePoint(step * dt, *state))
+                else:
+                    # For SEIRD, we still use StatePoint for backward compat, ignoring D
+                    trajectory.append(StatePoint(step * dt, state[0], state[1], state[2], state[3]))
 
         if not tidy:
             return trajectory
 
         # Tidy DataFrame: one row per time, one column per compartment
         import pandas as pd
-        records = [
-            {
-                "time": pt.time,
-                "susceptible": pt.susceptible,
-                "exposed": pt.exposed,
-                "infected": pt.infected,
-                "recovered": pt.recovered,
-                "total_population": pt.total_population,
-            }
-            for pt in trajectory
-        ]
+        
+        if "D" in compartments:
+            # SEIRD case: include D column
+            records = [
+                {
+                    "time": pt.time,
+                    "susceptible": pt.susceptible,
+                    "exposed": pt.exposed,
+                    "infected": pt.infected,
+                    "recovered": pt.recovered,
+                    "deceased": 0.0,  # TODO: track D in StatePoint for SEIRD
+                    "total_population": pt.total_population,
+                }
+                for pt in trajectory
+            ]
+        else:
+            # SEIR case: existing format
+            records = [
+                {
+                    "time": pt.time,
+                    "susceptible": pt.susceptible,
+                    "exposed": pt.exposed,
+                    "infected": pt.infected,
+                    "recovered": pt.recovered,
+                    "total_population": pt.total_population,
+                }
+                for pt in trajectory
+            ]
         return pd.DataFrame(records)
 
 
