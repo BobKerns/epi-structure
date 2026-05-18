@@ -3,6 +3,7 @@ axhline
 axvline
 axvspan
 behaviour
+cfrs
 coeffs
 Colab
 connectionstyle

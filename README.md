@@ -83,8 +83,6 @@ pip install -e .
 jupyter lab
 ```
 
-Note: these commands are placeholders until pyproject.toml and notebooks are added.
-
 ## Public Notebook Access
 
 GitHub rendering can fail for some notebooks. Use these links for reliable viewing and
