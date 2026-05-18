@@ -294,7 +294,11 @@ class EpidemicModel:
             return ds_dt, de_dt, di_dt, dr_dt
 
     @staticmethod
-    def _normalize_state(state: StateVector, expected_total: float, compartments: list[str]) -> StateVector:
+    def _normalize_state(
+        state: StateVector,
+        expected_total: float,
+        compartments: list[str],
+    ) -> StateVector:
         """Normalize state vector to ensure exact population conservation.
         
         Guards against small negative drift from finite-precision arithmetic.
@@ -335,56 +339,51 @@ class EpidemicModel:
         
         # Build initial state vector from compartments in order
         compartments = self.population.disease.compartments
+        has_deceased = "D" in compartments
         initial_state_dict = self.population.initial_state_by_compartment()
         state: StateVector = tuple(initial_state_dict[c] for c in compartments)
 
-        trajectory = [StatePoint(0.0, *state)] if "D" not in compartments else [
-            StatePoint(0.0, state[0], state[1], state[2], state[3])
-        ]
+        # Keep raw state snapshots so tidy output can include all compartments.
+        trajectory: list[tuple[float, StateVector]] = [(0.0, state)]
 
         for step in range(1, steps + 1):
             raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
             state = self._normalize_state(raw_state, float(self.population.size), compartments)
             if step % self.simulation.output_stride == 0:
-                if "D" not in compartments:
-                    trajectory.append(StatePoint(step * dt, *state))
-                else:
-                    # For SEIRD, we still use StatePoint for backward compat, ignoring D
-                    trajectory.append(StatePoint(step * dt, state[0], state[1], state[2], state[3]))
+                trajectory.append((step * dt, state))
 
         if not tidy:
-            return trajectory
+            if not has_deceased:
+                return [StatePoint(t, s[0], s[1], s[2], s[3]) for t, s in trajectory]
+
+            generalized: list[GeneralizedStatePoint] = []
+            for t, s in trajectory:
+                values = {compartment: s[i] for i, compartment in enumerate(compartments)}
+                generalized.append(
+                    GeneralizedStatePoint(
+                        time=t,
+                        compartments=tuple(compartments),
+                        values=values,
+                    )
+                )
+            return generalized
 
         # Tidy DataFrame: one row per time, one column per compartment
         import pandas as pd
-        
-        if "D" in compartments:
-            # SEIRD case: include D column
-            records = [
-                {
-                    "time": pt.time,
-                    "susceptible": pt.susceptible,
-                    "exposed": pt.exposed,
-                    "infected": pt.infected,
-                    "recovered": pt.recovered,
-                    "deceased": 0.0,  # TODO: track D in StatePoint for SEIRD
-                    "total_population": pt.total_population,
-                }
-                for pt in trajectory
-            ]
-        else:
-            # SEIR case: existing format
-            records = [
-                {
-                    "time": pt.time,
-                    "susceptible": pt.susceptible,
-                    "exposed": pt.exposed,
-                    "infected": pt.infected,
-                    "recovered": pt.recovered,
-                    "total_population": pt.total_population,
-                }
-                for pt in trajectory
-            ]
+
+        records: list[dict[str, float]] = []
+        for t, s in trajectory:
+            row: dict[str, float] = {
+                "time": t,
+                "susceptible": s[compartments.index("S")] if "S" in compartments else 0.0,
+                "exposed": s[compartments.index("E")] if "E" in compartments else 0.0,
+                "infected": s[compartments.index("I")] if "I" in compartments else 0.0,
+                "recovered": s[compartments.index("R")] if "R" in compartments else 0.0,
+                "total_population": sum(s),
+            }
+            if has_deceased:
+                row["deceased"] = s[compartments.index("D")]
+            records.append(row)
         return pd.DataFrame(records)
 
 
@@ -414,16 +413,33 @@ class StructuredEpidemicModel:
         self.contact_matrix = self._validate_contact_matrix(contact_matrix, len(populations))
 
         self._names = [population.name for population in populations]
+        self._compartments = list(populations[0].disease.compartments)
+        for population in populations:
+            if list(population.disease.compartments) != self._compartments:
+                raise ValueError("all populations must use the same compartment ordering")
+        self._compartment_count = len(self._compartments)
+        self._compartment_offsets = {
+            compartment: index for index, compartment in enumerate(self._compartments)
+        }
+        self._has_deceased = "D" in self._compartments
+
+        required = {"S", "I", "R"}
+        if not required.issubset(self._compartment_offsets):
+            raise ValueError("compartments must include S, I, and R for StructuredEpidemicModel")
+
         self._sizes = [float(population.size) for population in populations]
         self._gammas = [1.0 / population.disease.infectious_period for population in populations]
         self._sigmas = [
             None if population.disease.latent_period is None else 1.0 / population.disease.latent_period
             for population in populations
         ]
+        if any(sigma is not None for sigma in self._sigmas) and "E" not in self._compartment_offsets:
+            raise ValueError("compartments must include E when latent_period is provided")
         self._omegas = [
             0.0 if population.disease.waning_period is None else 1.0 / population.disease.waning_period
             for population in populations
         ]
+        self._cfrs = [population.disease.case_fatality_rate for population in populations]
         self._active_contact_matrix = [row[:] for row in self.contact_matrix]
 
     @classmethod
@@ -454,34 +470,45 @@ class StructuredEpidemicModel:
                 raise ValueError("contact_matrix entries must be non-negative")
         return contact_matrix
 
-    @staticmethod
-    def _state_index(population_index: int, compartment_offset: int) -> int:
-        return 4 * population_index + compartment_offset
+    def _state_index(self, population_index: int, compartment_offset: int) -> int:
+        return self._compartment_count * population_index + compartment_offset
 
     def _initial_state(self) -> StateVector:
         values: list[float] = []
         for population in self.populations:
-            s, e, i, r = population.initial_state
-            values.extend((float(s), float(e), float(i), float(r)))
+            initial_state = population.initial_state_by_compartment()
+            for compartment in self._compartments:
+                values.append(initial_state.get(compartment, 0.0))
         return tuple(values)
 
     def _derivatives(self, state: StateVector) -> StateVector:
         derivatives: list[float] = [0.0] * len(state)
-        infected = [state[self._state_index(i, 2)] for i in range(len(self.populations))]
+        infected_offset = self._compartment_offsets["I"]
+        infected = [state[self._state_index(i, infected_offset)] for i in range(len(self.populations))]
 
         for i in range(len(self.populations)):
-            s_index = self._state_index(i, 0)
-            e_index = self._state_index(i, 1)
-            i_index = self._state_index(i, 2)
-            r_index = self._state_index(i, 3)
+            s_index = self._state_index(i, self._compartment_offsets["S"])
+            i_index = self._state_index(i, self._compartment_offsets["I"])
+            r_index = self._state_index(i, self._compartment_offsets["R"])
+            e_index = (
+                None
+                if "E" not in self._compartment_offsets
+                else self._state_index(i, self._compartment_offsets["E"])
+            )
+            d_index = (
+                None
+                if "D" not in self._compartment_offsets
+                else self._state_index(i, self._compartment_offsets["D"])
+            )
 
             s_value = state[s_index]
-            e_value = state[e_index]
+            e_value = 0.0 if e_index is None else state[e_index]
             i_value = state[i_index]
             r_value = state[r_index]
 
             infection_pressure = sum(
-                self._active_contact_matrix[i][j] * infected[j] for j in range(len(self.populations))
+                self._active_contact_matrix[i][j] * (infected[j] / self._sizes[j])
+                for j in range(len(self.populations))
             )
             infection_flow = s_value * infection_pressure
 
@@ -500,8 +527,14 @@ class StructuredEpidemicModel:
                 di_dt = sigma * e_value - gamma * i_value
                 dr_dt = gamma * i_value - omega * r_value
 
+            if d_index is not None:
+                cfr = self._cfrs[i]
+                dr_dt = (1.0 - cfr) * gamma * i_value - omega * r_value
+                derivatives[d_index] = cfr * gamma * i_value
+
             derivatives[s_index] = ds_dt
-            derivatives[e_index] = de_dt
+            if e_index is not None:
+                derivatives[e_index] = de_dt
             derivatives[i_index] = di_dt
             derivatives[r_index] = dr_dt
 
@@ -511,24 +544,18 @@ class StructuredEpidemicModel:
         normalized: list[float] = list(state)
 
         for i in range(len(self.populations)):
-            s_index = self._state_index(i, 0)
-            e_index = self._state_index(i, 1)
-            i_index = self._state_index(i, 2)
-            r_index = self._state_index(i, 3)
+            s_index = self._state_index(i, self._compartment_offsets["S"])
 
-            s = max(0.0, normalized[s_index])
-            e = max(0.0, normalized[e_index])
-            infected = max(0.0, normalized[i_index])
-            recovered = max(0.0, normalized[r_index])
+            compartment_indices = [
+                self._state_index(i, offset)
+                for offset in self._compartment_offsets.values()
+            ]
+            for index in compartment_indices:
+                normalized[index] = max(0.0, normalized[index])
 
-            total = s + e + infected + recovered
+            total = sum(normalized[index] for index in compartment_indices)
             correction = self._sizes[i] - total
-            s = max(0.0, s + correction)
-
-            normalized[s_index] = s
-            normalized[e_index] = e
-            normalized[i_index] = infected
-            normalized[r_index] = recovered
+            normalized[s_index] = max(0.0, normalized[s_index] + correction)
 
         return tuple(normalized)
 
@@ -536,12 +563,20 @@ class StructuredEpidemicModel:
         by_population: dict[str, StatePoint] = {}
         for i, name in enumerate(self._names):
             offset = self._state_index(i, 0)
+            s = state[offset + self._compartment_offsets["S"]]
+            e = (
+                0.0
+                if "E" not in self._compartment_offsets
+                else state[offset + self._compartment_offsets["E"]]
+            )
+            infected = state[offset + self._compartment_offsets["I"]]
+            recovered = state[offset + self._compartment_offsets["R"]]
             by_population[name] = StatePoint(
                 time=time,
-                susceptible=state[offset],
-                exposed=state[offset + 1],
-                infected=state[offset + 2],
-                recovered=state[offset + 3],
+                susceptible=s,
+                exposed=e,
+                infected=infected,
+                recovered=recovered,
             )
         return StructuredStatePoint(time=time, by_population=by_population)
 
@@ -591,7 +626,7 @@ class StructuredEpidemicModel:
         records = []
         for pt in trajectory:
             for pop_name, pop_state in pt.by_population.items():
-                records.append({
+                record = {
                     "time": pt.time,
                     "population": pop_name,
                     "susceptible": pop_state.susceptible,
@@ -599,7 +634,15 @@ class StructuredEpidemicModel:
                     "infected": pop_state.infected,
                     "recovered": pop_state.recovered,
                     "total_population": pop_state.total_population,
-                })
+                }
+                if self._has_deceased:
+                    # Deceased is represented in runtime state but not in StatePoint,
+                    # so infer it from the population size and visible compartments.
+                    size = next(p.size for p in self.populations if p.name == pop_name)
+                    record["deceased"] = max(0.0, size - (
+                        pop_state.susceptible + pop_state.exposed + pop_state.infected + pop_state.recovered
+                    ))
+                records.append(record)
         return pd.DataFrame(records)
 
     def contact_matrix_df(self) -> pd.DataFrame:
