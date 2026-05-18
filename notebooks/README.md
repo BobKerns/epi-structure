@@ -38,6 +38,7 @@ This directory contains Jupyter notebooks for exploring and demonstrating the ep
 **06_superspreader_party_crawl.ipynb**: Sparse coupling and re-seeding dynamics
 - General-only subcritical regime ($R_0 < 1$) contrasted with coupled cluster dynamics
 - Superspreader cluster surges and spillback into the general population
+- Includes a deterministic vs probability-engine comparison section for whole-person transitions
 
 **07_rt_wells_riley_decomposition.ipynb**: Mechanistic $R_t$ decomposition
 - Decomposes $R_t$ into contact rate, infectious duration, susceptibility, and per-contact infection probability
@@ -70,6 +71,17 @@ setup, use Colab or Binder.
 | 09_timed_interventions.ipynb | [view](https://github.com/BobKerns/epi-structure/blob/main/notebooks/09_timed_interventions.ipynb) | [view](https://nbviewer.org/github/BobKerns/epi-structure/blob/main/notebooks/09_timed_interventions.ipynb) | [run](https://colab.research.google.com/github/BobKerns/epi-structure/blob/main/notebooks/09_timed_interventions.ipynb) | [run](https://mybinder.org/v2/gh/BobKerns/epi-structure/main?labpath=notebooks/09_timed_interventions.ipynb) |
 | contact_matrix_exploration.ipynb | [view](https://github.com/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [view](https://nbviewer.org/github/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [run](https://colab.research.google.com/github/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [run](https://mybinder.org/v2/gh/BobKerns/epi-structure/main?labpath=notebooks/contact_matrix_exploration.ipynb) |
 | exploration.ipynb | [view](https://github.com/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [view](https://nbviewer.org/github/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [run](https://colab.research.google.com/github/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [run](https://mybinder.org/v2/gh/BobKerns/epi-structure/main?labpath=notebooks/exploration.ipynb) |
+
+## Simulation Engines
+
+The notebook helpers support both deterministic and probability-based structured models.
+
+- `engine="rk4"` keeps the current deterministic integration path.
+- `engine="probability"` uses whole-person sampled transitions and accepts an optional `seed`.
+
+Example: `run_scenario(crawl_scenario, engine="probability", seed=42)` demonstrates the party-crawl scenario with integer compartment counts.
+
+See [06_superspreader_party_crawl.ipynb](06_superspreader_party_crawl.ipynb) for a side-by-side comparison.
 
 ### Applied Examples
 
