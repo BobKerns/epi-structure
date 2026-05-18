@@ -1,5 +1,7 @@
 """Core epidemic model implementation."""
 
+import math
+import random
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -21,6 +23,7 @@ class StateStepper(Protocol):
         state: StateVector,
         time_step: float,
         derivatives: DerivativeFunction,
+        context: object | None = None,
     ) -> StateVector:
         """Advance one integration/transition step and return the next state."""
 
@@ -37,6 +40,7 @@ class RK4Stepper:
         state: StateVector,
         time_step: float,
         derivatives: DerivativeFunction,
+        context: object | None = None,
     ) -> StateVector:
         k1 = derivatives(state)
         k2 = derivatives(self._add_scaled(state, k1, 0.5 * time_step))
@@ -47,6 +51,210 @@ class RK4Stepper:
             state[i] + time_step * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0
             for i in range(len(state))
         )
+
+
+class TransitionProbabilityStepper:
+    """Discrete-time stochastic transition engine.
+
+    Each compartment transition is sampled as a binomial draw from the current
+    compartment counts, so the state remains whole-numbered rather than
+    containing fractional people.
+    """
+
+    def __init__(self, seed: int | None = None) -> None:
+        self._rng = random.Random(seed)
+
+    @staticmethod
+    def _transition_probability(rate: float, time_step: float) -> float:
+        if rate <= 0.0 or time_step <= 0.0:
+            return 0.0
+        return min(1.0, -math.expm1(-rate * time_step))
+
+    def _binomial(self, trials: float, probability: float) -> int:
+        count = max(0, int(round(trials)))
+        probability = min(max(probability, 0.0), 1.0)
+        if count == 0 or probability == 0.0:
+            return 0
+        if probability == 1.0:
+            return count
+        return sum(1 for _ in range(count) if self._rng.random() < probability)
+
+    def _step_single_population(self, context, state: StateVector, time_step: float) -> StateVector:
+        population = context.population
+        compartments = population.disease.compartments
+        has_deceased = "D" in compartments
+
+        if has_deceased:
+            if len(state) != 5:
+                raise ValueError(f"SEIRD model requires 5-element state, got {len(state)}")
+            susceptible, exposed, infected, recovered, deceased = state
+        else:
+            if len(state) != 4:
+                raise ValueError(f"SEIR model requires 4-element state, got {len(state)}")
+            susceptible, exposed, infected, recovered = state
+            deceased = 0.0
+
+        susceptible = max(0.0, susceptible)
+        exposed = max(0.0, exposed)
+        infected = max(0.0, infected)
+        recovered = max(0.0, recovered)
+        deceased = max(0.0, deceased)
+
+        infection_rate = 0.0 if population.size <= 0 else population.beta * infected / float(population.size)
+        infection_probability = self._transition_probability(infection_rate, time_step)
+        waning_probability = self._transition_probability(context._omega, time_step)
+
+        if context._sigma is None:
+            new_infections = self._binomial(susceptible, infection_probability)
+            exposed_to_infected = 0
+        else:
+            new_infections = self._binomial(susceptible, infection_probability)
+            exposed_to_infected = self._binomial(
+                exposed,
+                self._transition_probability(context._sigma, time_step),
+            )
+
+        infected_leavers = self._binomial(
+            infected,
+            self._transition_probability(context._gamma, time_step),
+        )
+
+        if has_deceased:
+            cfr = population.disease.case_fatality_rate
+            deaths = self._binomial(infected_leavers, cfr)
+            recoveries = infected_leavers - deaths
+        else:
+            deaths = 0
+            recoveries = infected_leavers
+
+        waning = self._binomial(recovered, waning_probability)
+
+        if context._sigma is None:
+            next_susceptible = susceptible - new_infections + waning
+            next_exposed = 0.0
+            next_infected = infected + new_infections - infected_leavers
+            next_recovered = recovered + recoveries - waning
+        else:
+            next_susceptible = susceptible - new_infections + waning
+            next_exposed = exposed + new_infections - exposed_to_infected
+            next_infected = infected + exposed_to_infected - infected_leavers
+            next_recovered = recovered + recoveries - waning
+
+        if has_deceased:
+            next_deceased = deceased + deaths
+            return (
+                float(next_susceptible),
+                float(next_exposed),
+                float(next_infected),
+                float(next_recovered),
+                float(next_deceased),
+            )
+
+        return (
+            float(next_susceptible),
+            float(next_exposed),
+            float(next_infected),
+            float(next_recovered),
+        )
+
+    def _step_structured(self, context, state: StateVector, time_step: float) -> StateVector:
+        compartments = context._compartments
+        offsets = context._compartment_offsets
+        has_deceased = context._has_deceased
+        next_state = list(state)
+
+        infected = [
+            max(0.0, state[context._state_index(i, offsets["I"])])
+            for i in range(len(context.populations))
+        ]
+
+        for i in range(len(context.populations)):
+            s_index = context._state_index(i, offsets["S"])
+            i_index = context._state_index(i, offsets["I"])
+            r_index = context._state_index(i, offsets["R"])
+            e_index = None if "E" not in offsets else context._state_index(i, offsets["E"])
+            d_index = None if "D" not in offsets else context._state_index(i, offsets["D"])
+
+            susceptible = max(0.0, state[s_index])
+            exposed = 0.0 if e_index is None else max(0.0, state[e_index])
+            infected_count = max(0.0, state[i_index])
+            recovered = max(0.0, state[r_index])
+            deceased = 0.0 if d_index is None else max(0.0, state[d_index])
+
+            infection_pressure = sum(
+                context._active_contact_matrix[i][j] * (infected[j] / context._sizes[j])
+                for j in range(len(context.populations))
+            )
+            infection_probability = self._transition_probability(infection_pressure, time_step)
+            waning_probability = self._transition_probability(context._omegas[i], time_step)
+
+            new_infections = self._binomial(susceptible, infection_probability)
+            if e_index is None:
+                exposed_to_infected = 0
+            else:
+                exposed_to_infected = self._binomial(
+                    exposed,
+                    self._transition_probability(context._sigmas[i], time_step),
+                )
+
+            infected_leavers = self._binomial(
+                infected_count,
+                self._transition_probability(context._gammas[i], time_step),
+            )
+
+            if has_deceased:
+                deaths = self._binomial(infected_leavers, context._cfrs[i])
+                recoveries = infected_leavers - deaths
+            else:
+                deaths = 0
+                recoveries = infected_leavers
+
+            waning = self._binomial(recovered, waning_probability)
+
+            next_state[s_index] = float(susceptible - new_infections + waning)
+            if e_index is not None:
+                next_state[e_index] = float(exposed + new_infections - exposed_to_infected)
+            next_state[i_index] = float(infected_count + exposed_to_infected - infected_leavers)
+            next_state[r_index] = float(recovered + recoveries - waning)
+            if d_index is not None:
+                next_state[d_index] = float(deceased + deaths)
+
+        return tuple(next_state)
+
+    def step(
+        self,
+        state: StateVector,
+        time_step: float,
+        derivatives: DerivativeFunction,
+        context: object | None = None,
+    ) -> StateVector:
+        if context is None:
+            raise ValueError("TransitionProbabilityStepper requires model context")
+
+        if hasattr(context, "populations") and hasattr(context, "_compartment_offsets"):
+            return self._step_structured(context, state, time_step)
+
+        return self._step_single_population(context, state, time_step)
+
+
+def _step_with_context(
+    stepper: StateStepper,
+    state: StateVector,
+    time_step: float,
+    derivatives: DerivativeFunction,
+    context: object,
+) -> StateVector:
+    try:
+        return stepper.step(
+            state=state,
+            time_step=time_step,
+            derivatives=derivatives,
+            context=context,
+        )
+    except TypeError as error:
+        if "context" not in str(error):
+            raise
+        return stepper.step(state=state, time_step=time_step, derivatives=derivatives)
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,7 +555,7 @@ class EpidemicModel:
         trajectory: list[tuple[float, StateVector]] = [(0.0, state)]
 
         for step in range(1, steps + 1):
-            raw_state = self.stepper.step(state=state, time_step=dt, derivatives=self._derivatives)
+            raw_state = _step_with_context(self.stepper, state, dt, self._derivatives, self)
             state = self._normalize_state(raw_state, float(self.population.size), compartments)
             if step % self.simulation.output_stride == 0:
                 trajectory.append((step * dt, state))
@@ -613,7 +821,13 @@ class StructuredEpidemicModel:
                     time=current_time,
                 )
 
-            raw_state = self.stepper.step(state=current_state, time_step=dt, derivatives=self._derivatives)
+            raw_state = _step_with_context(
+                self.stepper,
+                current_state,
+                dt,
+                self._derivatives,
+                self,
+            )
             current_state = self._normalize_state(raw_state)
             if step % self.simulation.output_stride == 0:
                 trajectory.append(self._structured_state_point(step * dt, current_state))

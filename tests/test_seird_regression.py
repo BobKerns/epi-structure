@@ -7,6 +7,7 @@ from epi_structure import (
     PopulationParameters,
     SimulationParameters,
     StructuredEpidemicModel,
+    TransitionProbabilityStepper,
 )
 
 
@@ -74,6 +75,56 @@ class TestSEIRDRegression(unittest.TestCase):
 
         last = df.sort_values("time").groupby("population").tail(1)
         self.assertGreater(float(last["deceased"].sum()), 0.0)
+
+    def test_probability_stepper_keeps_whole_person_counts(self) -> None:
+        disease = DiseaseParameters(latent_period=5.0)
+        pop = PopulationParameters(
+            name="A",
+            size=10_000,
+            beta=0.4,
+            initial_infected=10,
+            disease=disease,
+        )
+
+        model = EpidemicModel(
+            population=pop,
+            simulation=SimulationParameters(duration=20.0, time_step=0.1, output_stride=10),
+            stepper=TransitionProbabilityStepper(seed=7),
+        )
+
+        df = model.simulate(tidy=True)
+
+        for column in ("susceptible", "exposed", "infected", "recovered"):
+            values = df[column].astype(float)
+            for value in values:
+                self.assertTrue(math.isclose(value, round(value), rel_tol=0.0, abs_tol=1e-9))
+
+        total = df["susceptible"] + df["exposed"] + df["infected"] + df["recovered"]
+        for value in total:
+            self.assertTrue(math.isclose(float(value), 10_000.0, rel_tol=0.0, abs_tol=1e-9))
+
+    def test_probability_stepper_handles_structured_models(self) -> None:
+        disease = DiseaseParameters(latent_period=5.0)
+        p1 = PopulationParameters(name="A", size=8_000, beta=0.35, initial_infected=8, disease=disease)
+        p2 = PopulationParameters(name="B", size=6_000, beta=0.30, initial_infected=5, disease=disease)
+
+        model = StructuredEpidemicModel(
+            populations=[p1, p2],
+            contact_matrix=[[0.5, 0.1], [0.1, 0.4]],
+            simulation=SimulationParameters(duration=20.0, time_step=0.1, output_stride=10),
+            stepper=TransitionProbabilityStepper(seed=11),
+        )
+
+        df = model.simulate(tidy=True)
+
+        for column in ("susceptible", "exposed", "infected", "recovered"):
+            values = df[column].astype(float)
+            for value in values:
+                self.assertTrue(math.isclose(value, round(value), rel_tol=0.0, abs_tol=1e-9))
+
+        grouped = df.groupby(["time", "population"])[["susceptible", "exposed", "infected", "recovered"]].sum()
+        for (_, _), row in grouped.iterrows():
+            self.assertTrue(math.isclose(float(row.sum()), 1.0 * (8_000 if row.name[1] == "A" else 6_000), rel_tol=0.0, abs_tol=1e-9))
 
 
 if __name__ == "__main__":
