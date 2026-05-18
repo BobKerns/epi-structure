@@ -102,6 +102,15 @@ easy cloud execution.
 | contact_matrix_exploration.ipynb | [view](https://github.com/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [view](https://nbviewer.org/github/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [run](https://colab.research.google.com/github/BobKerns/epi-structure/blob/main/notebooks/contact_matrix_exploration.ipynb) | [run](https://mybinder.org/v2/gh/BobKerns/epi-structure/main?labpath=notebooks/contact_matrix_exploration.ipynb) |
 | exploration.ipynb | [view](https://github.com/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [view](https://nbviewer.org/github/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [run](https://colab.research.google.com/github/BobKerns/epi-structure/blob/main/notebooks/exploration.ipynb) | [run](https://mybinder.org/v2/gh/BobKerns/epi-structure/main?labpath=notebooks/exploration.ipynb) |
 
+## Simulation Engines
+
+Notebook helpers now support two structured-model modes:
+
+- `engine="rk4"` for the current deterministic integration path
+- `engine="probability"` for whole-person sampled transitions with an optional `seed`
+
+For example, `run_scenario(crawl_scenario, engine="probability", seed=42)` runs the party-crawl scenario with integer compartment counts.
+
 ## Data and Narrative Artifacts
 
 - thread.md: source thread motivating the project

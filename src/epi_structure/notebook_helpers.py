@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Circle, FancyArrowPatch
 
-from .model import StructuredEpidemicModel, StructuredStatePoint
+from .model import StructuredEpidemicModel, StructuredStatePoint, TransitionProbabilityStepper
 from .scenarios import Scenario, get_scenario
 
 
@@ -45,17 +45,33 @@ def run_scenario(
     simulation=None,
     contact_matrix_override: list[list[float]] | None = None,
     intervention_plan=None,
+    engine: str = "rk4",
+    seed: int | None = None,
 ) -> list[StructuredStatePoint]:
-    """Run a scenario by name or object, with optional simulation and matrix overrides."""
+    """Run a scenario by name or object, with optional simulation and matrix overrides.
+
+    Use ``engine="probability"`` to sample whole-number transitions instead of
+    integrating fractional compartment counts.
+    """
     scenario_obj = get_scenario(scenario) if isinstance(scenario, str) else scenario
     if not isinstance(scenario_obj, Scenario) and hasattr(scenario_obj, "build"):
         scenario_obj = scenario_obj.build()
+
+    stepper = None
+    normalized_engine = engine.strip().lower()
+    if normalized_engine in {"rk4", "deterministic"}:
+        stepper = None
+    elif normalized_engine in {"probability", "transition_probability", "stochastic"}:
+        stepper = TransitionProbabilityStepper(seed=seed)
+    else:
+        raise ValueError("engine must be 'rk4' or 'probability'")
 
     model = StructuredEpidemicModel(
         populations=scenario_obj.populations,
         contact_matrix=contact_matrix_override or scenario_obj.contact_matrix,
         simulation=simulation or scenario_obj.simulation,
         intervention_plan=(scenario_obj.intervention_plan if intervention_plan is None else intervention_plan),
+        stepper=stepper,
     )
     return model.simulate()
 
